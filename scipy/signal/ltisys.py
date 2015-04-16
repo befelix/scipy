@@ -627,6 +627,17 @@ class TransferFunction(lti):
         """
         return StateSpace(*tf2ss(self.num, self.den))
 
+    def to_sos(self):
+        """Convert system representation to second order.
+
+        Returns
+        -------
+        sys : instance of sos
+            Second order model of the current system
+
+        """
+        return SecondOrderSections(*tf2sos(self.zeros, self.poles, self.gain))
+
 
 class ZerosPolesGain(lti):
     """
@@ -766,6 +777,19 @@ class ZerosPolesGain(lti):
 
         """
         return StateSpace(*zpk2ss(self.zeros, self.poles, self.gain))
+
+    def to_sos(self):
+        """Convert system representation to second order.
+
+        Returns
+        -------
+        sys : instance of sos
+            Second order model of the current system
+
+        """
+        return SecondOrderSections(*zpk2sos(self.zeros, self.poles,
+                                            self.gain))
+
 
 
 class StateSpace(lti):
