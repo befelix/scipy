@@ -437,6 +437,17 @@ class lti(object):
         source_class = type(self)
         self._copy(source_class(obj))
 
+    @property
+    def sos(self):
+        return self.to_sos().sos
+
+    @sos.setter
+    def sos(self, sos):
+        obj = self.to_sos()
+        obj.sos = sos
+        source_class = type(self)
+        self.copy(source_class(obj), copy=False)
+
     def impulse(self, X0=None, T=None, N=None):
         """
         Return the impulse response of a continuous-time system.
