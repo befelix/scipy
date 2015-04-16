@@ -37,13 +37,14 @@ import copy
 from scipy import integrate, interpolate, linalg
 from scipy._lib.six import xrange
 
-from .filter_design import tf2zpk, zpk2tf, normalize, freqs
+from .filter_design import (tf2zpk, zpk2tf, normalize, freqs, tf2sos, sos2tf,
+                            zpk2sos, sos2zpk)
 
 
 __all__ = ['tf2ss', 'ss2tf', 'abcd_normalize', 'zpk2ss', 'ss2zpk', 'lti',
-           'TransferFunction', 'ZerosPolesGain', 'StateSpace', 'lsim',
-           'lsim2', 'impulse', 'impulse2', 'step', 'step2', 'bode',
-           'freqresp', 'place_poles']
+           'TransferFunction', 'ZerosPolesGain', 'StateSpace',
+           'SecondOrderSections', 'lsim', 'lsim2', 'impulse', 'impulse2',
+           'step', 'step2', 'bode', 'freqresp', 'place_poles']
 
 
 def tf2ss(num, den):
@@ -921,6 +922,106 @@ class StateSpace(lti):
 
         """
         return copy.deepcopy(self)
+
+
+class SecondOrderSections(lti):
+    """ Linear Time Invariant system class as second order sections.
+
+    Parameters
+    ----------
+    *system : arguments
+        The `sos` class can be instantiated with 1 argument.
+        The following gives the number of elements in the tuple and the
+        interpretation:
+
+            * 1: (lti system: sos, tf or zpk)
+            * 1: (sos ndarray)
+
+    """
+    def __init__(self, *system):
+        """Initialize the second order LTI system."""
+        super(SecondOrderSections, self).__init__(self, *system)
+
+        self._sos = None
+
+        if len(system) == 1:
+            if isinstance(system[0], lti):
+                self._copy(system[0].to_sos())
+            else:
+                self.sos = system[0]
+
+    def __repr__(self):
+        """Return representation of the second order systen"""
+        return '{0}(\n{1}\n)'.format(
+            self.__class__.__name__,
+            repr(self.sos),
+            )
+
+    @property
+    def sos(self):
+        return self._sos
+
+    @sos.setter
+    def sos(self, sos):
+        self._sos = _atleast_2d_or_none(sos)
+
+    def _copy(self, system, copy=True):
+        """Copy the parameters of another sos system
+
+        Parameters
+        ----------
+        system : instance of sos
+            The second order system that is to be copied
+        copy : bool, optional
+            Whether to copy arrays
+
+        """
+        self.sos = system.sos
+        if copy:
+            self.sos = self.sos.copy()
+
+    def to_tf(self, **kwargs):
+        """Convert system representation to transfer function.
+
+        Parameters
+        ----------
+        kwargs : dict, optional
+            Additional keywords passed to ss2zpk
+
+        Returns
+        -------
+        sys : instance of tf
+            Transfer function of the current system
+
+        """
+        return TransferFunction(*sos2tf(self.sos, **kwargs))
+
+    def to_zpk(self, **kwargs):
+        """Convert system representation to zero, pole, gain.
+
+        Parameters
+        ----------
+        kwargs : dict, optional
+            Additional keywords passed to ss2zpk
+
+        Returns
+        -------
+        sys : instance of zpk
+            Zero, pole, gain representation of the current system
+
+        """
+        return ZerosPolesGain(*sos2zpk(self.sos, **kwargs))
+
+    def to_sos(self):
+        """Convert system representation to second order format.
+
+        Returns
+        -------
+        sys : instance of sos
+            The current object (self)
+
+        """
+        return self
 
 
 def lsim2(system, U=None, T=None, X0=None, **kwargs):
