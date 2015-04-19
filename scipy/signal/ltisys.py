@@ -446,7 +446,7 @@ class lti(object):
         obj = self.to_sos()
         obj.sos = sos
         source_class = type(self)
-        self.copy(source_class(obj), copy=False)
+        self.copy(source_class(obj))
 
     def impulse(self, X0=None, T=None, N=None):
         """
@@ -973,17 +973,34 @@ class SecondOrderSections(lti):
             * 1: (sos ndarray)
 
     """
+    def __new__(cls, *args, **kwargs):
+        """Handle object conversion if input is an instance of lti"""
+        if len(args) == 1 and isinstance(args[0], lti):
+                return args[0].to_sos()
+
+        # No special conversion needed
+        return super(SecondOrderSections, cls).__new__(cls)
+
     def __init__(self, *system):
-        """Initialize the second order LTI system."""
+        """Initialize the second order LTI system
+
+        Parameters
+        ----------
+        *system : arguments
+            The following arguments are possible
+            * an instance of the lti class (sos, tf, zpk)
+            * (sos) second order array
+
+        """
+        # Conversion of lti instances is handled in __new__
+        if isinstance(system[0], lti):
+            return
+
         super(SecondOrderSections, self).__init__(self, *system)
 
         self._sos = None
 
-        if len(system) == 1:
-            if isinstance(system[0], lti):
-                self._copy(system[0].to_sos())
-            else:
-                self.sos = system[0]
+        self.sos = system[0]
 
     def __repr__(self):
         """Return representation of the second order systen"""
@@ -1000,20 +1017,16 @@ class SecondOrderSections(lti):
     def sos(self, sos):
         self._sos = _atleast_2d_or_none(sos)
 
-    def _copy(self, system, copy=True):
+    def copy(self, system):
         """Copy the parameters of another sos system
 
         Parameters
         ----------
         system : instance of sos
             The second order system that is to be copied
-        copy : bool, optional
-            Whether to copy arrays
 
         """
         self.sos = system.sos
-        if copy:
-            self.sos = self.sos.copy()
 
     def to_tf(self, **kwargs):
         """Convert system representation to transfer function.
@@ -1053,10 +1066,10 @@ class SecondOrderSections(lti):
         Returns
         -------
         sys : instance of sos
-            The current object (self)
+            Copy of the current system
 
         """
-        return self
+        return copy.deepcopy(self)
 
 
 def lsim2(system, U=None, T=None, X0=None, **kwargs):
