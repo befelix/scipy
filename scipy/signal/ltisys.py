@@ -1004,6 +1004,9 @@ class SecondOrderSections(lti):
         self._sos = None
 
         self.sos = system[0]
+        
+        self.inputs = 1
+        self.outputs = 1
 
     def __repr__(self):
         """Return representation of the second order systen"""
