@@ -288,6 +288,7 @@ class lti(object):
         The following gives the number of arguments and the corresponding
         subclass that is created:
 
+            * 1 'SecondOrderSections': (sos)
             * 2: `TransferFunction`:  (numerator, denominator)
             * 3: `ZerosPolesGain`: (zeros, poles, gain)
             * 4: `StateSpace`:  (A, B, C, D)
@@ -309,6 +310,8 @@ class lti(object):
         """Create an instance of the appropriate subclass."""
         if cls is lti:
             N = len(system)
+            if N == 1:
+                return super(lti, cls).__new__(SecondOrderSections)
             if N == 2:
                 return super(lti, cls).__new__(TransferFunction)
             elif N == 3:
@@ -647,7 +650,7 @@ class TransferFunction(lti):
             Second order model of the current system
 
         """
-        return SecondOrderSections(*tf2sos(self.zeros, self.poles, self.gain))
+        return SecondOrderSections(*tf2sos(self.num, self.den))
 
 
 class ZerosPolesGain(lti):
