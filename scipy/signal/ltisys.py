@@ -792,8 +792,13 @@ class ZerosPolesGain(lti):
         """
         return StateSpace(*zpk2ss(self.zeros, self.poles, self.gain))
 
-    def to_sos(self):
+    def to_sos(self, **kwargs):
         """Convert system representation to second order.
+
+        Parameters
+        ----------
+        kwargs : dict, optional
+            Additional keywords passed to zpk2sos
 
         Returns
         -------
@@ -802,8 +807,7 @@ class ZerosPolesGain(lti):
 
         """
         return SecondOrderSections(*zpk2sos(self.zeros, self.poles,
-                                            self.gain))
-
+                                            self.gain, **kwargs))
 
 
 class StateSpace(lti):
@@ -961,6 +965,22 @@ class StateSpace(lti):
         """
         return copy.deepcopy(self)
 
+    def to_sos(self, **kwargs):
+        """Convert system representation to second order.
+
+        Parameters
+        ----------
+        kwargs : dict, optional
+            Additional keywords passed to zpk2sos
+
+        Returns
+        -------
+        sys : instance of sos
+            Second order model of the current system
+
+        """
+        return self.to_zpk(**kwargs).to_sos()
+
 
 class SecondOrderSections(lti):
     """ Linear Time Invariant system class as second order sections.
@@ -1065,6 +1085,22 @@ class SecondOrderSections(lti):
 
         """
         return ZerosPolesGain(*sos2zpk(self.sos, **kwargs))
+
+    def to_ss(self, **kwargs):
+        """Convert system representation to state space.
+
+        Parameters
+        ----------
+        kwargs : dict, optional
+            Additional keywords passed to ss2zpk
+
+        Returns
+        -------
+        sys : instance of ss
+            State space representation of the current system
+
+        """
+        return self.to_zpk(**kwargs).to_ss()
 
     def to_sos(self):
         """Convert system representation to second order format.
