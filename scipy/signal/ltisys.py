@@ -571,6 +571,10 @@ class lti(LinearTimeInvariant):
 
         Each argument can be an array or a sequence.
 
+    See Also
+    --------
+    ZerosPolesGain, StateSpace, TransferFunction, ltid
+
     Notes
     -----
     `lti` instances do not exist directly. Instead, `lti` creates an instance
@@ -690,15 +694,24 @@ class ltid(LinearTimeInvariant):
 
         Each argument can be an array or a sequence.
 
+    See Also
+    --------
+    ZerosPolesGain, StateSpace, TransferFunction, lti
+
     Notes
     -----
-    `lti` instances do not exist directly. Instead, `lti` creates an instance
+    `ltid` instances do not exist directly. Instead, `ltid` creates an instance
     of one of its subclasses: `StateSpace`, `TransferFunction` or
     `ZerosPolesGain`.
 
     Changing the value of properties that are not directly part of the current
     system representation (such as the `zeros` of a `StateSpace` system) is
     very inefficient and may lead to numerical inaccuracies.
+
+    If (numerator, denominator) is passed in for ``*system``, coefficients for
+    both the numerator and denominator should be specified in descending
+    exponent order (e.g., ``z^2 + 3s + 5`` would be represented as ``[1, 3,
+    5]``).
 
     """
     def __new__(cls, *system):
@@ -802,8 +815,10 @@ class ltid(LinearTimeInvariant):
 class TransferFunction(LinearTimeInvariant):
     r"""Linear Time Invariant system class in transfer function form.
 
-    Represents the system as the transfer function
-    :math:`H(s)=\sum_{i=0}^N b[N-i] s^i / \sum_{j=0}^M a[M-j] s^j`, where
+    Represents the system as the continuous-time transfer function
+    :math:`H(s)=\sum_{i=0}^N b[N-i] s^i / \sum_{j=0}^M a[M-j] s^j` or the
+    discrete-time transfer function
+    :math:`H(s)=\sum_{i=0}^N b[N-i] z^i / \sum_{j=0}^M a[M-j] z^j`, where
     :math:`b` are elements of the numerator `num`, :math:`a` are elements of
     the denominator `den`, and ``N == len(b) - 1``, ``M == len(a) - 1``.
     `TransferFunction` systems inherit additional
@@ -817,14 +832,14 @@ class TransferFunction(LinearTimeInvariant):
         arguments. The following gives the number of input arguments and their
         interpretation:
 
-            * 1: `lti` system: (`StateSpace`, `TransferFunction` or
+            * 1: `lti` or `ltid` system: (`StateSpace`, `TransferFunction` or
               `ZerosPolesGain`)
             * 2: array_like: (numerator, denominator)
             * 3: array_like, constant: (numerator, denominator, sampling_time)
 
     See Also
     --------
-    ZerosPolesGain, StateSpace, lti
+    ZerosPolesGain, StateSpace, lti, ltid
     tf2ss, tf2zpk, tf2sos
 
     Notes
@@ -836,7 +851,8 @@ class TransferFunction(LinearTimeInvariant):
 
     If (numerator, denominator) is passed in for ``*system``, coefficients
     for both the numerator and denominator should be specified in descending
-    exponent order (e.g. ``s^2 + 3s + 5`` would be represented as ``[1, 3, 5]``).
+    exponent order (e.g. ``s^2 + 3s + 5`` or `z^2 + 3z + 5`` would be
+    represented as ``[1, 3, 5]``
 
     Examples
     --------
@@ -1022,7 +1038,8 @@ class TransferFunctionContinuous(TransferFunction, lti):
 
     If (numerator, denominator) is passed in for ``*system``, coefficients
     for both the numerator and denominator should be specified in descending
-    exponent order (e.g. ``s^2 + 3s + 5`` would be represented as ``[1, 3, 5]``).
+    exponent order (e.g., ``s^2 + 3s + 5`` would be represented as
+    ``[1, 3, 5]``).
 
     Examples
     --------
@@ -1062,13 +1079,13 @@ class TransferFunctionDiscrete(TransferFunction, ltid):
         arguments. The following gives the number of input arguments and their
         interpretation:
 
-            * 1: `lti` system: (`StateSpace`, `TransferFunction` or
+            * 1: `ltid` system: (`StateSpace`, `TransferFunction` or
               `ZerosPolesGain`)
             * 3: array_like, constant: (numerator, denominator, sampling_time)
 
     See Also
     --------
-    ZerosPolesGain, StateSpace, lti
+    ZerosPolesGain, StateSpace, ltid
     tf2ss, tf2zpk, tf2sos
 
     Notes
@@ -1080,22 +1097,23 @@ class TransferFunctionDiscrete(TransferFunction, ltid):
 
     If (numerator, denominator) is passed in for ``*system``, coefficients
     for both the numerator and denominator should be specified in descending
-    exponent order (e.g. ``z^2 + 3z + 5`` would be represented as ``[1, 3, 5]``).
+    exponent order (e.g., ``z^2 + 3z + 5`` would be represented as
+    ``[1, 3, 5]``).
 
     Examples
     --------
-    Construct the transfer function:
+    Construct the transfer function with a sampling time of 0.5 seconds:
 
-    .. math:: H(s) = \frac{z^2 + 3z + 3}{z^2 + 2z + 1}
+    .. math:: H(z) = \frac{z^2 + 3z + 3}{z^2 + 2z + 1}
 
     >>> from scipy import signal
     >>> num = [1, 3, 3]
     >>> den = [1, 2, 1]
-    >>> signal.TransferFunction(num, den)
+    >>> signal.TransferFunction(num, den, 0.5)
     TransferFunctionDiscrete(
     array([ 1.,  3.,  3.]),
     array([ 1.,  2.,  1.]),
-    sampling_time: None
+    sampling_time: 0.5
     )
 
     """
@@ -1120,14 +1138,14 @@ class ZerosPolesGain(LinearTimeInvariant):
         arguments. The following gives the number of input arguments and their
         interpretation:
 
-            * 1: `lti` system: (`StateSpace`, `TransferFunction` or
+            * 1: `lti` or `ltid` system: (`StateSpace`, `TransferFunction` or
               `ZerosPolesGain`)
             * 3: array_like: (zeros, poles, gain)
             * 4: array_like, constant: (zeros, poles, gain, sampling_time)
 
     See Also
     --------
-    TransferFunction, StateSpace, lti
+    TransferFunction, StateSpace, lti, ltid
     zpk2ss, zpk2tf, zpk2sos
 
     Notes
@@ -1336,13 +1354,13 @@ class ZerosPolesGainDiscrete(ZerosPolesGain, ltid):
         The following gives the number of input arguments and their
         interpretation:
 
-            * 1: `lti` system: (`StateSpace`, `TransferFunction` or
+            * 1: `ltid` system: (`StateSpace`, `TransferFunction` or
               `ZerosPolesGain`)
             * 4: array_like, constant: (zeros, poles, gain, sampling_time)
 
     See Also
     --------
-    TransferFunction, StateSpace, lti
+    TransferFunction, StateSpace, ltid
     zpk2ss, zpk2tf, zpk2sos
 
     Notes
@@ -1373,14 +1391,14 @@ class StateSpace(LinearTimeInvariant):
         The following gives the number of input arguments and their
         interpretation:
 
-            * 1: `lti` system: (`StateSpace`, `TransferFunction` or
+            * 1: `lti` or `ltid` system: (`StateSpace`, `TransferFunction` or
               `ZerosPolesGain`)
             * 4: array_like: (A, B, C, D)
             * 5: array_like, constant: (A, B, C, D, sampling_time)
 
     See Also
     --------
-    TransferFunction, ZerosPolesGain, lti
+    TransferFunction, ZerosPolesGain, lti, ltid
     ss2zpk, ss2tf, zpk2sos
 
     Notes
@@ -1601,13 +1619,13 @@ class StateSpaceDiscrete(StateSpace, ltid):
         The following gives the number of input arguments and their
         interpretation:
 
-            * 1: `lti` system: (`StateSpace`, `TransferFunction` or
+            * 1: `ltid` system: (`StateSpace`, `TransferFunction` or
               `ZerosPolesGain`)
             * 5: array_like, constant: (A, B, C, D, sampling_time)
 
     See Also
     --------
-    TransferFunction, ZerosPolesGain, lti
+    TransferFunction, ZerosPolesGain, ltid
     ss2zpk, ss2tf, zpk2sos
 
     Notes
@@ -1627,10 +1645,11 @@ def lsim2(system, U=None, T=None, X0=None, **kwargs):
 
     Parameters
     ----------
-    system : an instance of the LTI class or a tuple describing the system.
+    system : an instance of the `lti` class or a tuple describing the system.
         The following gives the number of elements in the tuple and
         the interpretation:
 
+        * 1: (instance of `lti`)
         * 2: (num, den)
         * 3: (zeros, poles, gain)
         * 4: (A, B, C, D)
@@ -1754,6 +1773,7 @@ def lsim(system, U, T, X0=None, interp=True):
         The following gives the number of elements in the tuple and
         the interpretation:
 
+        * 1: (instance of `lti`)
         * 2: (num, den)
         * 3: (zeros, poles, gain)
         * 4: (A, B, C, D)
@@ -1950,6 +1970,7 @@ def impulse(system, X0=None, T=None, N=None):
         The following gives the number of elements in the tuple and
         the interpretation:
 
+            * 1 (instance of `lti`)
             * 2 (num, den)
             * 3 (zeros, poles, gain)
             * 4 (A, B, C, D)
@@ -2009,6 +2030,7 @@ def impulse2(system, X0=None, T=None, N=None, **kwargs):
         The following gives the number of elements in the tuple and
         the interpretation:
 
+            * 1 (instance of `lti`)
             * 2 (num, den)
             * 3 (zeros, poles, gain)
             * 4 (A, B, C, D)
@@ -2096,6 +2118,7 @@ def step(system, X0=None, T=None, N=None):
         The following gives the number of elements in the tuple and
         the interpretation:
 
+            * 1 (instance of `lti`)
             * 2 (num, den)
             * 3 (zeros, poles, gain)
             * 4 (A, B, C, D)
@@ -2157,6 +2180,7 @@ def step2(system, X0=None, T=None, N=None, **kwargs):
         The following gives the number of elements in the tuple and
         the interpretation:
 
+            * 1 (instance of `lti`)
             * 2 (num, den)
             * 3 (zeros, poles, gain)
             * 4 (A, B, C, D)
@@ -3372,7 +3396,7 @@ def dfreqresp(system, w=None, n=10000, whole=False):
             * 4 (A, B, C, D, sampling_time)
 
     w : array_like, optional
-        Array of frequencies (in rad/s). Magnitude and phase data is
+        Array of frequencies (in radians/sample). Magnitude and phase data is
         calculated for every value in this array. If not given a reasonable
         set will be calculated.
     n : int, optional
@@ -3387,7 +3411,7 @@ def dfreqresp(system, w=None, n=10000, whole=False):
     Returns
     -------
     w : 1D ndarray
-        Frequency array [rad/s]
+        Frequency array [radians/sample]
     H : 1D ndarray
         Array of complex magnitude values
 
@@ -3423,7 +3447,7 @@ def dfreqresp(system, w=None, n=10000, whole=False):
         system = ltid(*system)._as_tf()
 
     if system.inputs != 1 or system.outputs != 1:
-        raise ValueError("dfreqresp() requires a SISO (single input, single "
+        raise ValueError("dfreqresp requires a SISO (single input, single "
                          "output) system.")
 
     if w is not None:
@@ -3443,7 +3467,6 @@ def dfreqresp(system, w=None, n=10000, whole=False):
     return freqz(num, den, worN=worN, whole=whole)
 
 
-
 def dbode(system, w=None, n=100):
     """
     Calculate Bode magnitude and phase data of a discrete-time system.
@@ -3460,9 +3483,9 @@ def dbode(system, w=None, n=100):
             * 4 (A, B, C, D)
 
     w : array_like, optional
-        Array of frequencies (in rad/s). Magnitude and phase data is calculated
-        for every value in this array. If not given a reasonable set will be
-        calculated.
+        Array of frequencies (in radians/sample). Magnitude and phase data is
+        calculated for every value in this array. If not given a reasonable
+        set will be calculated.
     n : int, optional
         Number of frequency points to compute if `w` is not given. The `n`
         frequencies are logarithmically spaced in an interval chosen to
@@ -3471,7 +3494,7 @@ def dbode(system, w=None, n=100):
     Returns
     -------
     w : 1D ndarray
-        Frequency array [rad/s]
+        Frequency array [rad/sample]
     mag : 1D ndarray
         Magnitude array [dB]
     phase : 1D ndarray
