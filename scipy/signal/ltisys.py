@@ -443,8 +443,8 @@ class dlti(LinearTimeInvariant):
 
     If (numerator, denominator) is passed in for ``*system``, coefficients for
     both the numerator and denominator should be specified in descending
-    exponent order (e.g., ``z^2 + 3z + 5`` would be represented as ``[1, 3,
-    5]``).
+    exponent order (e.g., `5 + 3 z**-1 + 2 z**-2` would be represented as
+    `[5, 3, 2]`).
 
     .. versionadded:: 0.18.0
 
@@ -627,8 +627,9 @@ class TransferFunction(LinearTimeInvariant):
 
     If (numerator, denominator) is passed in for ``*system``, coefficients
     for both the numerator and denominator should be specified in descending
-    exponent order (e.g. ``s^2 + 3s + 5`` or `z^2 + 3z + 5`` would be
-    represented as ``[1, 3, 5]``)
+    exponent order for continuous-time, and ascending inverse exponent order
+    for discrete-time (e.g. ``s^2 + 3s + 5`` and `1 + 3 z**-1 + 5 z**-2``
+    would be represented as ``[1, 3, 5]``).
 
     Examples
     --------
@@ -650,7 +651,7 @@ class TransferFunction(LinearTimeInvariant):
 
     Contruct the transfer function with a sampling time of 0.5 seconds:
 
-    .. math:: H(z) = \frac{z^2 + 3z + 3}{z^2 + 2z + 1}
+    .. math:: H(z) = \frac{1 + 3 z^{-1} + 3 z^{-2}}{1 + 2 z^{-1} + z^{-2}}
 
     >>> signal.TransferFunction(num, den, dt=0.1)
     TransferFunctionDiscrete(
@@ -763,7 +764,7 @@ class TransferFunction(LinearTimeInvariant):
             Zeros, poles, gain representation of the current system
 
         """
-        return ZerosPolesGain(*tf2zpk(self.num, self.den),
+        return ZerosPolesGain(*tf2zpk(*self._num_den_for_conversion()),
                               **self._dt_dict)
 
     def to_ss(self):
@@ -776,8 +777,22 @@ class TransferFunction(LinearTimeInvariant):
             State space model of the current system
 
         """
-        return StateSpace(*tf2ss(self.num, self.den),
+        return StateSpace(*tf2ss(*self._num_den_for_conversion()),
                           **self._dt_dict)
+
+    def _num_den_for_conversion(self):
+        """Return numerator and denominator in terms of `z` and `s`.
+
+        Returns:
+            num, den: 1d array_like.
+                Sequences representing the coefficients of the numerator and
+                denominator polynomials, in order of descending degree of 'z'.
+                That is, `5z**2 + 3z + 2` is presented as [5, 3, 2].
+        """
+        if isinstance(self, lti):
+            return self.num, self.den
+        else:
+            return self._zinv_to_z(self.num, self.den)
 
     @staticmethod
     def _z_to_zinv(num, den):
@@ -797,11 +812,24 @@ class TransferFunction(LinearTimeInvariant):
             denominator polynomials, in order of ascending degree of 'z**-1'.
             That is, `5 + 3 z**-1 + 2 z**-2` is presented as `[5, 3, 2]`.
         """
+        num, den = map(np.atleast_1d, (num, den))
+
+        # Convert to 1D array (throws error for multi-dimensional arrays)
+        if num.ndim > 1:
+            num = num.reshape(num.shape[-1])
+        if den.ndim > 1:
+            den = den.reshape(den.shape[-1])
+
         diff = len(num) - len(den)
         if diff > 0:
             den = np.hstack((np.zeros(diff), den))
         elif diff < 0:
             num = np.hstack((np.zeros(-diff), num))
+
+        # Minimal representation (5 + 2 z**-1 + 0 z**-2 = 5 + 2 z**-1)
+        num = np.trim_zeros(num, 'b')
+        den = np.trim_zeros(den, 'b')
+
         return num, den
 
     @staticmethod
@@ -820,14 +848,26 @@ class TransferFunction(LinearTimeInvariant):
         num, den: 1d array_like
             Sequences representing the coefficients of the numerator and
             denominator polynomials, in order of descending degree of 'z'.
-            That is,
-            `5z**2 + 3z + 2` is presented as [5, 3, 2].
+            That is, `5z**2 + 3z + 2` is presented as [5, 3, 2].
         """
+        num, den = map(np.atleast_1d, (num, den))
+
+        # Convert to 1D array (throws error for multi-dimensional arrays)
+        if num.ndim > 1:
+            num = num.reshape(num.shape[-1])
+        if den.ndim > 1:
+            den = den.reshape(den.shape[-1])
+
         diff = len(num) - len(den)
         if diff > 0:
             den = np.hstack((den, np.zeros(diff)))
         elif diff < 0:
             num = np.hstack((num, np.zeros(-diff)))
+
+        # Minimal representation (0 z**2 + 2 z**1 + 5 = 2 z**1 +5)
+        num = np.trim_zeros(num, 'f')
+        den = np.trim_zeros(den, 'f')
+
         return num, den
 
 
@@ -900,11 +940,9 @@ class TransferFunctionContinuous(TransferFunction, lti):
         -------
         sys: instance of `dlti` and `StateSpace`
         """
-        return TransferFunction(*cont2discrete((self.num, self.den),
-                                               dt,
-                                               method=method,
-                                               alpha=alpha)[:-1],
-                                dt=dt)
+        num, den = cont2discrete((self.num, self.den), dt, method=method,
+                                 alpha=alpha)[:-1]
+        return TransferFunction(*TransferFunction._z_to_zinv(num, den), dt=dt)
 
 
 class TransferFunctionDiscrete(TransferFunction, dlti):
@@ -965,7 +1003,17 @@ class TransferFunctionDiscrete(TransferFunction, dlti):
     dt: 0.5
     )
     """
-    pass
+    def __init__(self, *system, **kwargs):
+        if len(system) == 2:
+            # Normalize only works for variables in 'z', so do double
+            # conversion here.
+            system = self._zinv_to_z(*system)
+            super(TransferFunctionDiscrete, self).__init__(*system, **kwargs)
+            self.num, self.den = self._z_to_zinv(self.num, self.den)
+        else:
+            super(TransferFunctionDiscrete, self).__init__(*system, **kwargs)
+
+
 
 
 class ZerosPolesGain(LinearTimeInvariant):
@@ -1134,8 +1182,10 @@ class ZerosPolesGain(LinearTimeInvariant):
             Transfer function of the current system
 
         """
-        return TransferFunction(*zpk2tf(self.zeros, self.poles, self.gain),
-                                **self._dt_dict)
+        num, den = zpk2tf(self.zeros, self.poles, self.gain)
+        if isinstance(self, dlti):
+            num, den = TransferFunction._z_to_zinv(num, den)
+        return TransferFunction(num, den, **self._dt_dict)
 
     def to_zpk(self):
         """
@@ -1493,8 +1543,10 @@ class StateSpace(LinearTimeInvariant):
             Transfer function of the current system
 
         """
-        return TransferFunction(*ss2tf(self._A, self._B, self._C, self._D,
-                                       **kwargs), **self._dt_dict)
+        num, den = ss2tf(self.A, self.B, self.C, self.D, **kwargs)
+        if isinstance(self, dlti):
+            num, den = TransferFunction._z_to_zinv(num, den)
+        return TransferFunction(num, den, **self._dt_dict)
 
     def to_zpk(self, **kwargs):
         """
@@ -3195,6 +3247,9 @@ def dlsim(system, u, t=None, x0=None):
         raise AttributeError('dlsim can only be used with discrete-time dlti '
                              'systems.')
     elif not isinstance(system, dlti):
+        if len(system) == 3:
+            num, den = TransferFunction._z_to_zinv(*system[:2])
+            system = [num, den, system[-1]]
         system = dlti(*system[:-1], dt=system[-1])
 
     # Condition needed to ensure output remains compatible
@@ -3294,6 +3349,9 @@ def dimpulse(system, x0=None, t=None, n=None):
         raise AttributeError('dimpulse can only be used with discrete-time '
                              'dlti systems.')
     else:
+        if len(system) == 3:
+            num, den = TransferFunction._z_to_zinv(*system[:2])
+            system = [num, den, system[-1]]
         system = dlti(*system[:-1], dt=system[-1])._as_ss()
 
     # Default to 100 samples if unspecified
@@ -3368,6 +3426,9 @@ def dstep(system, x0=None, t=None, n=None):
         raise AttributeError('dstep can only be used with discrete-time dlti '
                              'systems.')
     else:
+        if len(system) == 3:
+            num, den = TransferFunction._z_to_zinv(*system[:2])
+            system = [num, den, system[-1]]
         system = dlti(*system[:-1], dt=system[-1])._as_ss()
 
     # Default to 100 samples if unspecified
@@ -3465,6 +3526,9 @@ def dfreqresp(system, w=None, n=10000, whole=False):
         raise AttributeError('dfreqresp can only be used with discrete-time '
                              'systems.')
     else:
+        if len(system) == 3:
+            num, den = TransferFunction._z_to_zinv(*system[:2])
+            system = [num, den, system[-1]]
         system = dlti(*system[:-1], dt=system[-1])._as_tf()
 
     if system.inputs != 1 or system.outputs != 1:

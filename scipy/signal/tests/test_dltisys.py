@@ -345,7 +345,7 @@ class TestStateSpaceDisc(object):
 
         # Getters
         s = StateSpace(1, 1, 1, 1, dt=0.05)
-        assert_equal(s.num, [1, 0])
+        assert_equal(s.num, [1])
         assert_equal(s.den, [1, -1])
         assert_equal(s.poles, [1])
         assert_equal(s.zeros, [0])
@@ -452,7 +452,7 @@ class TestZerosPolesGain(object):
 
         # Getters
         s = ZerosPolesGain(0, 1, 1, dt=0.05)
-        assert_equal(s.num, [1, 0])
+        assert_equal(s.num, [1])
         assert_equal(s.den, [1, -1])
         assert_equal(s.A, 1)
         assert_equal(s.B, 1)
