@@ -254,7 +254,7 @@ class lti(LinearTimeInvariant):
     *system : arguments
         The `lti` class can be instantiated with either 2, 3 or 4 arguments.
         The following gives the number of arguments and the corresponding
-        subclass that is created:
+        continuous-time subclass that is created:
 
             * 2: `TransferFunction`:  (numerator, denominator)
             * 3: `ZerosPolesGain`: (zeros, poles, gain)
@@ -279,8 +279,37 @@ class lti(LinearTimeInvariant):
 
     Changing the value of properties that are not directly part of the current
     system representation (such as the `zeros` of a `StateSpace` system) is
-    very inefficient and may lead to numerical inaccuracies.
+    very inefficient and may lead to numerical inaccuracies. It is better to
+    convert to the specific system representation first. For example, call
+    `sys = sys.to_zpk()` before accessing/changing the zeros, poles or gain.
 
+    Examples
+    --------
+    >>> from scipy import signal
+
+    >>> signal.lti(1, 2, 3, 4)
+    StateSpaceContinuous(
+    array([[1]]),
+    array([[2]]),
+    array([[3]]),
+    array([[4]]),
+    dt: None
+    )
+
+    >>> signal.lti([1, 2], [3, 4], 5)
+    ZerosPolesGainContinuous(
+    array([1, 2]),
+    array([3, 4]),
+    5,
+    dt: None
+    )
+
+    >>> signal.lti([3, 4], [1, 2])
+    TransferFunctionContinuous(
+    array([ 3.,  4.]),
+    array([ 1.,  2.]),
+    dt: None
+    )
     """
     def __new__(cls, *system):
         """Create an instance of the appropriate subclass."""
@@ -386,7 +415,7 @@ class ltid(LinearTimeInvariant):
     *system: arguments
         The `ltid` class can be instantiated with either 3, 4 or 5 arguments.
         The following gives the number of arguments and the corresponding
-        subclass that is created:
+        discrete-time subclass that is created:
 
             * 3: `TransferFunction`:  (numerator, denominator)
             * 4: `ZerosPolesGain`: (zeros, poles, gain)
@@ -409,12 +438,53 @@ class ltid(LinearTimeInvariant):
 
     Changing the value of properties that are not directly part of the current
     system representation (such as the `zeros` of a `StateSpace` system) is
-    very inefficient and may lead to numerical inaccuracies.
+    very inefficient and may lead to numerical inaccuracies.  It is better to
+    convert to the specific system representation first. For example, call
+    `sys = sys.to_zpk()` before accessing/changing the zeros, poles or gain.
 
     If (numerator, denominator) is passed in for ``*system``, coefficients for
     both the numerator and denominator should be specified in descending
-    exponent order (e.g., ``z^2 + 3s + 5`` would be represented as ``[1, 3,
+    exponent order (e.g., ``z^2 + 3z + 5`` would be represented as ``[1, 3,
     5]``).
+
+    .. versionadded:: 0.18.0
+
+    Examples
+    --------
+    >>> from scipy import signal
+
+    >>> signal.ltid(1, 2, 3, 4)
+    StateSpaceDiscrete(
+    array([[1]]),
+    array([[2]]),
+    array([[3]]),
+    array([[4]]),
+    dt: True
+    )
+
+    >>> signal.ltid(1, 2, 3, 4, dt=0.1)
+    StateSpaceDiscrete(
+    array([[1]]),
+    array([[2]]),
+    array([[3]]),
+    array([[4]]),
+    dt: 0.1
+    )
+
+    >>> signal.dlti([1, 2], [3, 4], 5, dt=0.1)
+    ZerosPolesGainDiscrete(
+    array([1, 2]),
+    array([3, 4]),
+    5,
+    dt: 0.1
+    )
+
+    >>> signal.ltid([3, 4], [1, 2], dt=0.1)
+    TransferFunctionDiscrete(
+    array([ 3.,  4.]),
+    array([ 1.,  2.]),
+    dt: 0.1
+    )
 
     """
     def __new__(cls, *system, **kwargs):
@@ -552,12 +622,14 @@ class TransferFunction(LinearTimeInvariant):
     Changing the value of properties that are not part of the
     `TransferFunction` system representation (such as the `A`, `B`, `C`, `D`
     state-space matrices) is very inefficient and may lead to numerical
-    inaccuracies.
+    inaccuracies.  It is better to convert to the specific system
+    representation first. For example, call `sys = sys.to_ss()` before
+    accessing/changing the A, B, C, D system matrices.
 
     If (numerator, denominator) is passed in for ``*system``, coefficients
     for both the numerator and denominator should be specified in descending
     exponent order (e.g. ``s^2 + 3s + 5`` or `z^2 + 3z + 5`` would be
-    represented as ``[1, 3, 5]``
+    represented as ``[1, 3, 5]``)
 
     Examples
     --------
@@ -566,8 +638,10 @@ class TransferFunction(LinearTimeInvariant):
     .. math:: H(s) = \frac{s^2 + 3s + 3}{s^2 + 2s + 1}
 
     >>> from scipy import signal
+
     >>> num = [1, 3, 3]
     >>> den = [1, 2, 1]
+
     >>> signal.TransferFunction(num, den)
     TransferFunctionContinuous(
     array([ 1.,  3.,  3.]),
@@ -575,6 +649,16 @@ class TransferFunction(LinearTimeInvariant):
     dt: None
     )
 
+    Contruct the transfer function with a sampling time of 0.5 seconds:
+
+    .. math:: H(z) = \frac{z^2 + 3z + 3}{z^2 + 2z + 1}
+
+    >>> signal.TransferFunction(num, den, dt=0.1)
+    TransferFunctionDiscrete(
+    array([ 1.,  3.,  3.]),
+    array([ 1.,  2.,  1.]),
+    dt: 0.1
+    )
     """
     def __new__(cls, *system, **kwargs):
         """Handle object conversion if input is an instance of lti."""
@@ -766,7 +850,7 @@ class TransferFunctionContinuous(TransferFunction, lti):
         arguments. The following gives the number of input arguments and their
         interpretation:
 
-            * 1: `lti` or `ltid` system: (`StateSpace`, `TransferFunction` or
+            * 1: `lti` system: (`StateSpace`, `TransferFunction` or
               `ZerosPolesGain`)
             * 2: array_like: (numerator, denominator)
 
@@ -780,12 +864,14 @@ class TransferFunctionContinuous(TransferFunction, lti):
     Changing the value of properties that are not part of the
     `TransferFunction` system representation (such as the `A`, `B`, `C`, `D`
     state-space matrices) is very inefficient and may lead to numerical
-    inaccuracies.
+    inaccuracies.  It is better to convert to the specific system
+    representation first. For example, call `sys = sys.to_ss()` before
+    accessing/changing the A, B, C, D system matrices.
 
     If (numerator, denominator) is passed in for ``*system``, coefficients
     for both the numerator and denominator should be specified in descending
-    exponent order (e.g., ``s^2 + 3s + 5`` would be represented as
-    ``[1, 3, 5]``).
+    exponent order (e.g. ``s^2 + 3s + 5`` would be represented as
+    ``[1, 3, 5]``)
 
     Examples
     --------
@@ -794,15 +880,16 @@ class TransferFunctionContinuous(TransferFunction, lti):
     .. math:: H(s) = \frac{s^2 + 3s + 3}{s^2 + 2s + 1}
 
     >>> from scipy import signal
+
     >>> num = [1, 3, 3]
     >>> den = [1, 2, 1]
+
     >>> signal.TransferFunction(num, den)
     TransferFunctionContinuous(
     array([ 1.,  3.,  3.]),
     array([ 1.,  2.,  1.]),
     dt: None
     )
-
     """
     def to_discrete(self, dt, method='zoh', alpha=None):
         """
@@ -839,7 +926,7 @@ class TransferFunctionDiscrete(TransferFunction, ltid):
         arguments. The following gives the number of input arguments and their
         interpretation:
 
-            * 1: `lti` or `ltid` system: (`StateSpace`, `TransferFunction` or
+            * 1: `ltid` system: (`StateSpace`, `TransferFunction` or
               `ZerosPolesGain`)
             * 2: array_like: (numerator, denominator)
     dt: float
@@ -878,7 +965,6 @@ class TransferFunctionDiscrete(TransferFunction, ltid):
     array([ 1.,  2.,  1.]),
     dt: 0.5
     )
-
     """
     pass
 
@@ -919,8 +1005,31 @@ class ZerosPolesGain(LinearTimeInvariant):
     Changing the value of properties that are not part of the
     `ZerosPolesGain` system representation (such as the `A`, `B`, `C`, `D`
     state-space matrices) is very inefficient and may lead to numerical
-    inaccuracies.
+    inaccuracies.  It is better to convert to the specific system
+    representation first. For example, call `sys = sys.to_ss()` before
+    accessing/changing the A, B, C, D system matrices.
 
+    Examples
+    --------
+    >>> from scipy import signal
+
+    # Transfer function: H(s) = 5(s - 1)(s - 2) / (s - 3)(s - 4)
+    >>> signal.ZerosPolesGain([1, 2], [3, 4], 5)
+    ZerosPolesGainContinuous(
+    array([1, 2]),
+    array([3, 4]),
+    5,
+    dt: None
+    )
+
+    # Transfer function: H(z) = 5(z - 1)(z - 2) / (z - 3)(z - 4)
+    >>> signal.ZerosPolesGain([1, 2], [3, 4], 5, dt=0.1)
+    ZerosPolesGainDiscrete(
+    array([1, 2]),
+    array([3, 4]),
+    5,
+    dt: 0.1
+    )
     """
     def __new__(cls, *system, **kwargs):
         """Handle object conversion if input is an instance of `lti`"""
@@ -1072,7 +1181,7 @@ class ZerosPolesGainContinuous(ZerosPolesGain, lti):
         arguments. The following gives the number of input arguments and their
         interpretation:
 
-            * 1: `lti` or `ltid` system: (`StateSpace`, `TransferFunction` or
+            * 1: `lti` system: (`StateSpace`, `TransferFunction` or
               `ZerosPolesGain`)
             * 3: array_like: (zeros, poles, gain)
 
@@ -1086,8 +1195,22 @@ class ZerosPolesGainContinuous(ZerosPolesGain, lti):
     Changing the value of properties that are not part of the
     `ZerosPolesGain` system representation (such as the `A`, `B`, `C`, `D`
     state-space matrices) is very inefficient and may lead to numerical
-    inaccuracies.
+    inaccuracies.  It is better to convert to the specific system
+    representation first. For example, call `sys = sys.to_ss()` before
+    accessing/changing the A, B, C, D system matrices.
 
+    Examples
+    --------
+    >>> from scipy import signal
+
+    # Transfer function: H(s) = 5(s - 1)(s - 2) / (s - 3)(s - 4)
+    >>> signal.ZerosPolesGain([1, 2], [3, 4], 5)
+    ZerosPolesGainContinuous(
+    array([1, 2]),
+    array([3, 4]),
+    5,
+    dt: None
+    )
     """
     def to_discrete(self, dt, method='zoh', alpha=None):
         """
@@ -1124,7 +1247,7 @@ class ZerosPolesGainDiscrete(ZerosPolesGain, ltid):
         arguments. The following gives the number of input arguments and their
         interpretation:
 
-            * 1: `lti` or `ltid` system: (`StateSpace`, `TransferFunction` or
+            * 1: `ltid` system: (`StateSpace`, `TransferFunction` or
               `ZerosPolesGain`)
             * 3: array_like: (zeros, poles, gain)
     dt: float
@@ -1141,8 +1264,31 @@ class ZerosPolesGainDiscrete(ZerosPolesGain, ltid):
     Changing the value of properties that are not part of the
     `ZerosPolesGain` system representation (such as the `A`, `B`, `C`, `D`
     state-space matrices) is very inefficient and may lead to numerical
-    inaccuracies.
+    inaccuracies.  It is better to convert to the specific system
+    representation first. For example, call `sys = sys.to_ss()` before
+    accessing/changing the A, B, C, D system matrices.
 
+    Examples
+    --------
+    >>> from scipy import signal
+
+    # Transfer function: H(s) = 5(s - 1)(s - 2) / (s - 3)(s - 4)
+    >>> signal.ZerosPolesGain([1, 2], [3, 4], 5)
+    ZerosPolesGainContinuous(
+    array([1, 2]),
+    array([3, 4]),
+    5,
+    dt: None
+    )
+
+    # Transfer function: H(z) = 5(z - 1)(z - 2) / (z - 3)(z - 4)
+    >>> signal.ZerosPolesGain([1, 2], [3, 4], 5, dt=0.1)
+    ZerosPolesGainDiscrete(
+    array([1, 2]),
+    array([3, 4]),
+    5,
+    dt: 0.1
+    )
     """
     pass
 
@@ -1185,8 +1331,55 @@ class StateSpace(LinearTimeInvariant):
     -----
     Changing the value of properties that are not part of the
     `StateSpace` system representation (such as `zeros` or `poles`) is very
-    inefficient and may lead to numerical inaccuracies.
+    inefficient and may lead to numerical inaccuracies.  It is better to
+    convert to the specific system representation first. For example, call
+    `sys = sys.to_zpk()` before accessing/changing the zeros, poles or gain.
 
+    Examples
+    --------
+    >>> from scipy import signal
+
+    >>> a = np.array([[0, 1], [0, 0]])
+    >>> b = np.array([[0], [1]])
+    >>> c = np.array([[1, 0]])
+    >>> d = np.array([[0]])
+
+    >>> sys = signal.StateSpace(a, b, c, d)
+    >>> print(sys)
+    StateSpaceContinuous(
+    array([[0, 1],
+           [0, 0]]),
+    array([[0],
+           [1]]),
+    array([[1, 0]]),
+    array([[0]]),
+    dt: None
+    )
+
+    >>> sys.to_discrete(0.1)
+    StateSpaceDiscrete(
+    array([[ 1. ,  0.1],
+           [ 0. ,  1. ]]),
+    array([[ 0.005],
+           [ 0.1  ]]),
+    array([[1, 0]]),
+    array([[0]]),
+    dt: 0.1
+    )
+
+    >>> a = np.array([[1, 0.1], [0, 1]])
+    >>> b = np.array([[0.005], [0.1]])
+
+    >>> signal.StateSpace(a, b, c, d, dt=0.1)
+    StateSpaceDiscrete(
+    array([[ 1. ,  0.1],
+           [ 0. ,  1. ]]),
+    array([[ 0.005],
+           [ 0.1  ]]),
+    array([[1, 0]]),
+    array([[0]]),
+    dt: 0.1
+    )
     """
     def __new__(cls, *system, **kwargs):
         """Create new StateSpace object and settle inheritance."""
@@ -1351,7 +1544,7 @@ class StateSpaceContinuous(StateSpace, lti):
         The following gives the number of input arguments and their
         interpretation:
 
-            * 1: `lti` or `ltid` system: (`StateSpace`, `TransferFunction` or
+            * 1: `lti` system: (`StateSpace`, `TransferFunction` or
               `ZerosPolesGain`)
             * 4: array_like: (A, B, C, D)
 
@@ -1364,8 +1557,30 @@ class StateSpaceContinuous(StateSpace, lti):
     -----
     Changing the value of properties that are not part of the
     `StateSpace` system representation (such as `zeros` or `poles`) is very
-    inefficient and may lead to numerical inaccuracies.
+    inefficient and may lead to numerical inaccuracies.  It is better to
+    convert to the specific system representation first. For example, call
+    `sys = sys.to_zpk()` before accessing/changing the zeros, poles or gain.
 
+    Examples
+    --------
+    >>> from scipy import signal
+
+    >>> a = np.array([[0, 1], [0, 0]])
+    >>> b = np.array([[0], [1]])
+    >>> c = np.array([[1, 0]])
+    >>> d = np.array([[0]])
+
+    >>> sys = signal.StateSpace(a, b, c, d)
+    >>> print(sys)
+    StateSpaceContinuous(
+    array([[0, 1],
+           [0, 0]]),
+    array([[0],
+           [1]]),
+    array([[1, 0]]),
+    array([[0]]),
+    dt: None
+    )
     """
     def to_discrete(self, dt, method='zoh', alpha=None):
         """
@@ -1400,7 +1615,7 @@ class StateSpaceDiscrete(StateSpace, ltid):
         The following gives the number of input arguments and their
         interpretation:
 
-            * 1: `lti` or `ltid` system: (`StateSpace`, `TransferFunction` or
+            * 1: `ltid` system: (`StateSpace`, `TransferFunction` or
               `ZerosPolesGain`)
             * 4: array_like: (A, B, C, D)
     dt: float
@@ -1416,8 +1631,29 @@ class StateSpaceDiscrete(StateSpace, ltid):
     -----
     Changing the value of properties that are not part of the
     `StateSpace` system representation (such as `zeros` or `poles`) is very
-    inefficient and may lead to numerical inaccuracies.
+    inefficient and may lead to numerical inaccuracies.  It is better to
+    convert to the specific system representation first. For example, call
+    `sys = sys.to_zpk()` before accessing/changing the zeros, poles or gain.
 
+    Examples
+    --------
+    >>> from scipy import signal
+
+    >>> a = np.array([[1, 0.1], [0, 1]])
+    >>> b = np.array([[0.005], [0.1]])
+    >>> c = np.array([[1, 0]])
+    >>> d = np.array([[0]])
+
+    >>> signal.StateSpace(a, b, c, d, dt=0.1)
+    StateSpaceDiscrete(
+    array([[ 1. ,  0.1],
+           [ 0. ,  1. ]]),
+    array([[ 0.005],
+           [ 0.1  ]]),
+    array([[1, 0]]),
+    array([[0]]),
+    dt: 0.1
+    )
     """
     pass
 
@@ -3205,6 +3441,8 @@ def dfreqresp(system, w=None, n=10000, whole=False):
     numerator and denominator should be specified in descending exponent
     order (e.g. ``z^2 + 3z + 5`` would be represented as ``[1, 3, 5]``).
 
+    .. versionadded:: 0.18.0
+
     Examples
     --------
     # Generating the Nyquist plot of a transfer function
@@ -3284,6 +3522,8 @@ def dbode(system, w=None, n=100):
     If (num, den) is passed in for ``system``, coefficients for both the
     numerator and denominator should be specified in descending exponent
     order (e.g. ``z^2 + 3z + 5`` would be represented as ``[1, 3, 5]``).
+
+    .. versionadded:: 0.18.0
 
     Examples
     --------
